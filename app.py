@@ -3,12 +3,23 @@ import tensorflow as tf
 import numpy as np
 import io
 from PIL import Image
+from tensorflow.keras.preprocessing import image
 
 app = Flask(__name__)
 
 # Load the trained model
 model = tf.keras.models.load_model('classifierHedlek.keras')
 
+# Define image preprocessing function
+def preprocess_image(img):
+    # Resize the image to match the model's expected input size
+    img = img.resize((256, 256))  # Resize image to 256x256 (adjust if necessary)
+    img_array = image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    img_array = img_array / 255.0  # Normalize the image to [0, 1] range
+    return img_array
+
+# API endpoint for prediction
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
@@ -16,24 +27,21 @@ def predict():
         image_file = request.files['image']
         if not image_file:
             return jsonify({'error': 'No image uploaded'}), 400
-
-        # Open the image and resize it to (224, 224) (model input size)
-        image = Image.open(io.BytesIO(image_file.read())).convert('RGB')
-        image = image.resize((224, 224))  # Resize to model's expected input size
         
-        # Convert to numpy array and normalize (scale pixel values to 0-1)
-        image_array = np.array(image, dtype=np.float32) / 255.0
-        
-        # Expand dimensions to create a batch of size 1 (required for prediction)
-        image_array = np.expand_dims(image_array, axis=0)
+        # Open the image
+        img = Image.open(io.BytesIO(image_file.read())).convert('RGB')
 
+        # Preprocess the image
+        img_array = preprocess_image(img)
+        
         # Make prediction
-        predictions = model.predict(image_array)
+        predictions = model.predict(img_array)
         
-        # Get the predicted class and confidence (probability)
-        predicted_class = np.argmax(predictions)  # Index of the class with the highest probability
-        confidence = np.max(predictions)  # Probability of the predicted class
-
+        # Get the predicted class and confidence
+        predicted_class = np.argmax(predictions, axis=1)[0]
+        confidence = predictions[0][predicted_class] * 100
+        
+        # Return the prediction result
         return jsonify({
             'predicted_class': int(predicted_class),
             'confidence': float(confidence)
