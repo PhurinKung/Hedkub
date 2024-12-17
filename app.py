@@ -17,14 +17,17 @@ def predict():
         if not image_file:
             return jsonify({'error': 'No image uploaded'}), 400
 
-        # Open the image and resize it to (224, 224) (model input size)
+        # Open the image and resize it to (224, 224)
         image = Image.open(io.BytesIO(image_file.read())).convert('RGB')
         image = image.resize((224, 224))  # Resize to model's expected input size
         
-        # Convert to numpy array and normalize (scale pixel values to 0-1)
+        # Convert to numpy array and normalize
         image_array = np.array(image, dtype=np.float32) / 255.0
         
-        # Expand dimensions to create a batch of size 1 (required for prediction)
+        # Flatten the image to match model input shape (14400)
+        image_array = image_array.flatten()  # Flatten the image
+        
+        # Ensure the image is reshaped to (1, 14400) to match the model input
         image_array = np.expand_dims(image_array, axis=0)
 
         # Make prediction
