@@ -17,19 +17,18 @@ def predict():
         if not image_file:
             return jsonify({'error': 'No image uploaded'}), 400
 
-        # Open the image and transform it into a tensor
+        # Open the image and resize it to (224, 224) (model input size)
         image = Image.open(io.BytesIO(image_file.read())).convert('RGB')
         image = image.resize((224, 224))  # Resize to model's expected input size
+        
+        # Convert to numpy array and normalize (scale pixel values to 0-1)
         image_array = np.array(image, dtype=np.float32) / 255.0
-        image_tensor = tf.convert_to_tensor([image_array])
-        dataset = tf.data.Dataset.from_tensor_slices(image_tensor).batch(1)
-        image_iterator = dataset.as_numpy_iterator()
+        
+        # Expand dimensions to create a batch of size 1 (required for prediction)
+        image_array = np.expand_dims(image_array, axis=0)
 
-        # Get the input data for the model
-        input_data = next(image_iterator)
-
-        # Make predictions
-        predictions = model.predict(input_data).tolist()
+        # Make prediction
+        predictions = model.predict(image_array).tolist()
 
         return jsonify({'predictions': predictions})
 
